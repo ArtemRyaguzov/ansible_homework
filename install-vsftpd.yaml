@@ -1,0 +1,80 @@
+---
+- name: Install ftp server
+  hosts: all
+  become: yes
+
+  vars:
+    anonymous_enable: yes
+    anon_upload_enable: yes
+    connect_from_port_20: yes
+    chroot_local_user: no
+    
+  tasks:
+  
+  - name: Install vsftpd
+    yum: 
+      name: vsftpd
+      state: latest
+
+  - name: Start vsftpd and enable it on the boot
+    service: 
+      name: vsftpd
+      state: started
+      enabled: yes
+
+  - name: Enable port
+    firewalld:
+      port: 20-21/tcp
+      permanent: true
+      state: enabled
+    notify: 
+      - restart firewalld
+
+  - name: Apply configuration
+    template: 
+      src: ./vsftpd-conf.j2
+      dest: /etc/vsftpd/vsftpd.conf
+    notify: 
+      - restart vsftpd
+
+  - name: Permissions for /var/ftp/pub
+    file:
+      path: /var/ftp/pub
+      owner: ftp
+      group: ftp
+      mode: '0755'
+
+  - name: Check SELinux status
+    command: getenforce
+    register: selinux_status
+
+  - debug:
+      var: selinux_status
+
+  - block:
+    - name: SELinux context
+      sefcontext:
+        target: '/var/ftp/pub'
+        setype: public_content_rw_t
+        state: present
+
+    - name: Set ftpd_anon_write flag on and keep it persistent across reboots
+      seboolean:
+        name: ftpd_anon_write
+        state: yes
+        persistent: yes
+
+    when: selinux_status.stdout	!= "Disabled"
+
+  handlers:
+
+  - name: restart firewalld
+    service:
+      name: firewalld
+      state: restarted
+
+  - name: restart vsftpd                
+    service:
+      name: vsftpd
+      state: restarted
+

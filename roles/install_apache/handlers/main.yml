@@ -1,0 +1,25 @@
+---
+# handlers file for install_apache
+- name: Restart Apache CentOS
+  service:
+    name: httpd
+    state: restarted
+  when: ansible_distribution == "CentOS"
+
+- name:	restart apache ubuntu
+  service:
+    name: apache2
+    state: restarted
+  when:	ansible_distribution == "Ubuntu"
+
+- name: restart firewalld
+  service:
+    name: firewalld
+    state: restarted
+
+- name: restart ufw
+  service:
+    name: ufw
+    state: restarted
+
+
